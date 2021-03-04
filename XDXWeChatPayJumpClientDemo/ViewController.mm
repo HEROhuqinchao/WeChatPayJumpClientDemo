@@ -12,10 +12,10 @@
 #import "TVUMJRefresh.h"
 
 /*
-    本例亲测可以正常跳转及返回
-
-        GitHub地址(附代码) :
-
+ 本例亲测可以正常跳转及返回
+ 
+ GitHub地址(附代码) :https://github.com/HEROhuqinchao/WeChatPayJumpClientDemo.git
+ 
  */
 
 
@@ -32,7 +32,7 @@ static const char *ModuleName = "XDXTestVC";
 //商户申请H5支付时提交的授权域名，使用时请更换自己的域名
 static const NSString *CompanyFirstDomainByWeChatRegister = @"web.guangdianyun.tv";
 //xdx 为前缀，可任意填写
-static const NSString *CustomByWeChatRegister = @"xdx";
+static const NSString *CustomByWeChatRegister = @"gdy3512";
 
 @interface ViewController ()<WKNavigationDelegate>
 
@@ -48,7 +48,7 @@ static const NSString *CustomByWeChatRegister = @"xdx";
 #pragma mark - View Life Cycle
 - (void)viewDidLoad {
     [super viewDidLoad];
-
+    
     [self setupUI];
     [self initWebView];
 }
@@ -129,7 +129,37 @@ static const NSString *CustomByWeChatRegister = @"xdx";
 #pragma mark - Button Action
 - (void)didClickBackBtn {
     if ([self.webView canGoBack]) {
-        [self.webView goBack];
+        // 这里用返回键演示自定义回退栈操作
+        // 当前url
+        NSString  *currentUrl = self.webView.backForwardList.currentItem.URL.absoluteString;
+        NSInteger needBackIndex = self.webView.backForwardList.backList.count -1;
+        //倒叙循环
+        for (WKBackForwardListItem *item in [self.webView.backForwardList.backList reverseObjectEnumerator]) {
+            NSString * url = self.webView.backForwardList.backList[needBackIndex].URL.absoluteString;
+            // 如果是和微信支付相关的链接, 则继续遍历
+            if ([url isEqualToString:@""] || url == nil) {
+                needBackIndex--;
+            }else
+            if ([url hasPrefix:@"https://wx.tenpay.com/cgi-bin/mmpayweb-bin/checkmweb"]) {// 微信验证链接
+                needBackIndex--;
+            }else
+            if ([url containsString:@"pay/wxh5pay"]) {// 广电云支付按钮跳转链接
+                needBackIndex--;
+            }else
+            if ([url isEqualToString:currentUrl]) { // 是否为支付按钮点击前链接
+                needBackIndex--;
+            }else
+            {
+                break;
+            }
+        }
+        // needBackIndex 表示可以跳转的回退栈里的下角标,若为负数,说明遍历没有找到能回退的页面
+        if (needBackIndex >= 0) {
+            WKBackForwardListItem* backItem = self.webView.backForwardList.backList[needBackIndex];//返回的页码，0是首页
+            [self.webView goToBackForwardListItem:backItem];
+        } else {
+            // 没有能返回的页面--当前已经是首页
+        }
     }
 }
 
@@ -174,19 +204,19 @@ static const NSString *CustomByWeChatRegister = @"xdx";
     static NSString *endPayRedirectURL = nil;
     
     // Wechat Pay, Note : modify redirect_url to resolve we couldn't return our app from wechat client.
-/**
- 拦截微信支付地址
- 
- 前缀https://wx.tenpay.com/cgi-bin/mmpayweb-bin/checkmweb的网址，该网址即为进行微信支付
- 
- 拦截后我们需要首先关注在原始地址中是否含有redirect_url=字符串，如果含有该字符串则说明你们后台人员是利用该字符串在微信支付完成后跳转到支付完成的界面.而我们也需要利用该字段以实现支付完成后跳转回我们的APP.
- 
- 如果包含redirect_url=字段，我们需要先记住后台重定向的地址，然后将其替换成我们配置好的URL schemes以实现跳转回我们的APP.然后在跳转回我们APP之后我们会手动再加载一次原先重定向的URL地址。
- 
- 如果不包含redirect_url=字段，我们只需要添加该字段到原始URL最后面即可
- 
- 使用[[UIApplication sharedApplication] openURL:request.URL];即可打开微信客户端
- */
+    /**
+     拦截微信支付地址
+     
+     前缀https://wx.tenpay.com/cgi-bin/mmpayweb-bin/checkmweb的网址，该网址即为进行微信支付
+     
+     拦截后我们需要首先关注在原始地址中是否含有redirect_url=字符串，如果含有该字符串则说明你们后台人员是利用该字符串在微信支付完成后跳转到支付完成的界面.而我们也需要利用该字段以实现支付完成后跳转回我们的APP.
+     
+     如果包含redirect_url=字段，我们需要先记住后台重定向的地址，然后将其替换成我们配置好的URL schemes以实现跳转回我们的APP.然后在跳转回我们APP之后我们会手动再加载一次原先重定向的URL地址。
+     
+     如果不包含redirect_url=字段，我们只需要添加该字段到原始URL最后面即可
+     
+     使用[[UIApplication sharedApplication] openURL:request.URL];即可打开微信客户端
+     */
     if ([absoluteString hasPrefix:@"https://wx.tenpay.com/cgi-bin/mmpayweb-bin/checkmweb"] && ![absoluteString hasSuffix:[NSString stringWithFormat:@"redirect_url=%@.%@://",CustomByWeChatRegister,CompanyFirstDomainByWeChatRegister]]) {
         decisionHandler(WKNavigationActionPolicyCancel);
         
@@ -216,7 +246,19 @@ static const NSString *CustomByWeChatRegister = @"xdx";
         decisionHandler(WKNavigationActionPolicyCancel);
         if ([scheme isEqualToString:@"weixin"]) {
             // The var endPayRedirectURL was our saved origin url's redirect address. We need to load it when we return from wechat client.
+            //  endPayRedirectURL 是我们保存的源url的重定向地址。我们需要在从微信客户端返回时加载它。
             if (endPayRedirectURL) {
+                
+                //返回最后支付页面
+                /**
+                 注意：2  此处为客户端跳转web H5支付页面—>再次跳转微信支付界面-跳转次数为 两次无效页面，导航栈列表减2即初始支付页面
+                 */
+                
+                //                NSInteger step = self.webView.backForwardList.backList.count - 2;//返回的页码，0是首页
+                //                WKBackForwardListItem* backItem = webView.backForwardList.backList[step];
+                //                [webView goToBackForwardListItem:backItem];
+                
+                //加载最后支付页面 - 用户自定义支付完成页面页面
                 [webView loadRequest:[NSURLRequest requestWithURL:[NSURL URLWithString:endPayRedirectURL] cachePolicy:NSURLRequestUseProtocolCachePolicy timeoutInterval:XDX_URL_TIMEOUT]];
             }
         }else if ([scheme isEqualToString:[NSString stringWithFormat:@"%@.%@",CustomByWeChatRegister,CompanyFirstDomainByWeChatRegister]]) {
@@ -312,5 +354,36 @@ static const NSString *CustomByWeChatRegister = @"xdx";
 - (void)dealloc {
 }
 
+/**
+ 
+ //方法一：网页里面target的值置为空
+ - (void)webView:(WKWebView )webView decidePolicyForNavigationAction:(WKNavigationAction )navigationAction decisionHandler:(void (^)(WKNavigationActionPolicy))decisionHandler{
+ if (!navigationAction.targetFrame.isMainFrame) {
+ [webView evaluateJavaScript:@"var a = document.getElementsByTagName('a');for(var i=0;i<a.length;i++){a[i].setAttribute('target','');}" completionHandler:nil];
+ 
+ }
+ decisionHandler(WKNavigationActionPolicyAllow);
+ 
+ }
+ //方法二：KNavigationAction 中有两个属性：sourceFrame和targetFrame，分别代表这个action的出处和目标。类型是 WKFrameInfo 。WKFrameInfo有一个 mainFrame 的属性，正是这个属性标记着这个frame是在主frame里还是新开一个frame。
+ 
+ - (void)webView:(WKWebView)webView decidePolicyForNavigationAction:(WKNavigationAction)navigationAction decisionHandler:(void(^)(WKNavigationActionPolicy))decisionHandler{
+ if(navigationAction.targetFrame==nil){
+ [webView loadRequest:navigationAction.request];
+ 
+ }    decisionHandler(WKNavigationActionPolicyAllow);
+ 
+ }
+ //方法三：wkwebview 自带的WKUIDelegate代理方法
+ - (WKWebView*)webView:(WKWebView*)webView createWebViewWithConfiguration:(WKWebViewConfiguration*)configuration forNavigationAction:(WKNavigationAction*)navigationAction windowFeatures:(WKWindowFeatures*)windowFeatures {
+ NSLog(@"页面弹出窗口");
+ if(!navigationAction.targetFrame.isMainFrame) {
+ [webView loadRequest:navigationAction.request];
+ 
+ }
+ return nil;
+ 
+ }
+ */
 
 @end

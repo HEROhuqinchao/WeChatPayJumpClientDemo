@@ -19,6 +19,23 @@
     // Override point for customization after application launch.
     return YES;
 }
+- (BOOL)application:(UIApplication *)app openURL:(NSURL *)url options:(NSDictionary<NSString *,id> *)options{
+    //safepay是支付宝H5支付的回调host
+    if ([url.host isEqualToString:@"wxpaycallback"] || [url.host isEqualToString:@"safepay"]) {
+        // 自行操作业务逻辑，比如使用通知请求查询订单状态，popView回上级页面等
+//        UITabBarController *tabBarVC = (UITabBarController *)topRootViewController;
+//        UINavigationController *navVC = tabBarVC.viewControllers[tabBarVC.selectedIndex];
+//        [navVC popViewControllerAnimated:YES];
+        
+        NSString *orderId = [[NSUserDefaults standardUserDefaults] objectForKey:@"PayOrderId"];
+            NSString *payFee = [[NSUserDefaults standardUserDefaults] objectForKey:@"PayFee"];
+            //以及更多参数
+        NSDictionary *resultDict = @{@"order_id":orderId, @"payFee":payFee};
+        [[NSNotificationCenter defaultCenter] postNotificationName:@"htmlPaymentNotification" object:self userInfo:resultDict];
+    }
+    return YES;
+}
+
 
 
 - (void)applicationWillResignActive:(UIApplication *)application {
