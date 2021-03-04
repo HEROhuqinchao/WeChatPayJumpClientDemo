@@ -25,6 +25,9 @@
 
 #define XDX_URL_TIMEOUT 10
 
+//自定义返回栈。1罗列返回栈 筛选出微信相关 返回指定页面。2直接返回上层两次页面-这里取跳转微信需要跳转两次 则直接返回两次进行解决
+#define BackType 2
+
 static const char *ModuleName = "XDXTestVC";
 
 #warning Note : xdx.web.guangdianyun.tv -> 您必须在Info.plist中配置它。1. "xdx"前缀可以写任何值。2. 你必须用微信注册你的公司正确的域名。如果您的域是错误的，它将显示 "商家参数格式错误，请联系商家解决";
@@ -128,39 +131,46 @@ static const NSString *CustomByWeChatRegister = @"gdy3512";
 
 #pragma mark - Button Action
 - (void)didClickBackBtn {
+    
     if ([self.webView canGoBack]) {
         // 这里用返回键演示自定义回退栈操作
         // 当前url
-        NSString  *currentUrl = self.webView.backForwardList.currentItem.URL.absoluteString;
-        NSInteger needBackIndex = self.webView.backForwardList.backList.count -1;
-        //倒叙循环
-        for (WKBackForwardListItem *item in [self.webView.backForwardList.backList reverseObjectEnumerator]) {
-            NSString * url = self.webView.backForwardList.backList[needBackIndex].URL.absoluteString;
-            // 如果是和微信支付相关的链接, 则继续遍历
-            if ([url isEqualToString:@""] || url == nil) {
-                needBackIndex--;
-            }else
-            if ([url hasPrefix:@"https://wx.tenpay.com/cgi-bin/mmpayweb-bin/checkmweb"]) {// 微信验证链接
-                needBackIndex--;
-            }else
-            if ([url containsString:@"pay/wxh5pay"]) {// 广电云支付按钮跳转链接
-                needBackIndex--;
-            }else
-            if ([url isEqualToString:currentUrl]) { // 是否为支付按钮点击前链接
-                needBackIndex--;
-            }else
-            {
-                break;
+        if (BackType == 1) {
+            NSString  *currentUrl = self.webView.backForwardList.currentItem.URL.absoluteString;
+            NSInteger needBackIndex = self.webView.backForwardList.backList.count -1;
+            //倒叙循环
+            for (WKBackForwardListItem *item in [self.webView.backForwardList.backList reverseObjectEnumerator]) {
+                NSString * url = self.webView.backForwardList.backList[needBackIndex].URL.absoluteString;
+                // 如果是和微信支付相关的链接, 则继续遍历
+                if ([url isEqualToString:@""] || url == nil) {
+                    needBackIndex--;
+                }else
+                if ([url hasPrefix:@"https://wx.tenpay.com/cgi-bin/mmpayweb-bin/checkmweb"]) {// 微信验证链接
+                    needBackIndex--;
+                }else
+                if ([url containsString:@"pay/wxh5pay"]) {// 广电云支付按钮跳转链接
+                    needBackIndex--;
+                }else
+                if ([url isEqualToString:currentUrl]) { // 是否为支付按钮点击前链接
+                    needBackIndex--;
+                }else
+                {
+                    break;
+                }
             }
-        }
-        // needBackIndex 表示可以跳转的回退栈里的下角标,若为负数,说明遍历没有找到能回退的页面
-        if (needBackIndex >= 0) {
-            WKBackForwardListItem* backItem = self.webView.backForwardList.backList[needBackIndex];//返回的页码，0是首页
-            [self.webView goToBackForwardListItem:backItem];
-        } else {
-            // 没有能返回的页面--当前已经是首页
+            // needBackIndex 表示可以跳转的回退栈里的下角标,若为负数,说明遍历没有找到能回退的页面
+            if (needBackIndex >= 0) {
+                WKBackForwardListItem* backItem = self.webView.backForwardList.backList[needBackIndex];//返回的页码，0是首页
+                [self.webView goToBackForwardListItem:backItem];
+            } else {
+                // 没有能返回的页面--当前已经是首页
+            }
+        }else{
+            [self.webView goBack];
         }
     }
+    
+    
 }
 
 #pragma mark - Notificaiton
@@ -248,18 +258,18 @@ static const NSString *CustomByWeChatRegister = @"gdy3512";
             // The var endPayRedirectURL was our saved origin url's redirect address. We need to load it when we return from wechat client.
             //  endPayRedirectURL 是我们保存的源url的重定向地址。我们需要在从微信客户端返回时加载它。
             if (endPayRedirectURL) {
-                
-                //返回最后支付页面
-                /**
-                 注意：2  此处为客户端跳转web H5支付页面—>再次跳转微信支付界面-跳转次数为 两次无效页面，导航栈列表减2即初始支付页面
-                 */
-                
-                //                NSInteger step = self.webView.backForwardList.backList.count - 2;//返回的页码，0是首页
-                //                WKBackForwardListItem* backItem = webView.backForwardList.backList[step];
-                //                [webView goToBackForwardListItem:backItem];
-                
-                //加载最后支付页面 - 用户自定义支付完成页面页面
-                [webView loadRequest:[NSURLRequest requestWithURL:[NSURL URLWithString:endPayRedirectURL] cachePolicy:NSURLRequestUseProtocolCachePolicy timeoutInterval:XDX_URL_TIMEOUT]];
+                if (BackType == 1) {
+                    //加载最后支付页面 - 用户自定义支付完成页面页面
+                    [webView loadRequest:[NSURLRequest requestWithURL:[NSURL URLWithString:endPayRedirectURL] cachePolicy:NSURLRequestUseProtocolCachePolicy timeoutInterval:XDX_URL_TIMEOUT]];
+                }else{
+                    //返回最后支付页面
+                    /**
+                     注意：2  此处为客户端跳转web H5支付页面—>再次跳转微信支付界面-跳转次数为 两次无效页面，导航栈列表减2即初始支付页面
+                     */
+                    NSInteger step = self.webView.backForwardList.backList.count - 2;//返回的页码，0是首页
+                    WKBackForwardListItem* backItem = webView.backForwardList.backList[step];
+                    [webView goToBackForwardListItem:backItem];
+                }
             }
         }else if ([scheme isEqualToString:[NSString stringWithFormat:@"%@.%@",CustomByWeChatRegister,CompanyFirstDomainByWeChatRegister]]) {
             
