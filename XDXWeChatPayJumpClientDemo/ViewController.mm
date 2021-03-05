@@ -25,6 +25,7 @@
 
 #define XDX_URL_TIMEOUT 10
 
+#warning Note : 此处修改 微信跳转判断
 //自定义返回栈。1罗列返回栈 筛选出微信相关 返回指定页面。2直接返回上层两次页面-这里取跳转微信需要跳转两次 则直接返回两次进行解决
 #define BackType 2
 
@@ -131,7 +132,7 @@ static const NSString *CustomByWeChatRegister = @"gdy3512";
 
 #pragma mark - Button Action
 - (void)didClickBackBtn {
-    
+#warning Note : 此处修改 微信跳转判断
     if ([self.webView canGoBack]) {
         // 这里用返回键演示自定义回退栈操作
         // 当前url
@@ -257,6 +258,7 @@ static const NSString *CustomByWeChatRegister = @"gdy3512";
         if ([scheme isEqualToString:@"weixin"]) {
             // The var endPayRedirectURL was our saved origin url's redirect address. We need to load it when we return from wechat client.
             //  endPayRedirectURL 是我们保存的源url的重定向地址。我们需要在从微信客户端返回时加载它。
+#warning Note : 此处修改 微信跳转判断
             if (endPayRedirectURL) {
                 if (BackType == 1) {
                     //加载最后支付页面 - 用户自定义支付完成页面页面
